@@ -20,7 +20,7 @@ int analogBufferIndex = 0;
 
 // ===== Calibration =====
 // Measure this using distilled water
-const float CLEAR_VOLTAGE = 4.095;
+const float CLEAR_VOLTAGE = 4.;
 
 // Increase/decrease this value to tune sensitivity
 const float SCALE_FACTOR = 1000.0;
