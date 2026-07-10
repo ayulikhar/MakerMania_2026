@@ -1,9 +1,11 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <math.h>
 
 // ── Calibration ──────────────────────────────────────────
-#define TURB_BASELINE  480    // distilled water NTU offset
+#define CLEAR_ADC 2029
+#define SCALE_FACTOR 0.8
 #define TDS_OFFSET     6.0    // distilled water TDS offset
 #define TDS_CORRECTION 1.0    // adjust after KCl calibration
 
@@ -17,10 +19,19 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // ── Pins ─────────────────────────────────────────────────
 #define TURBIDITY_PIN 4
-#define TDS_PIN       0
+#define TDS_PIN 0
 
+int readADC(int pin)
+{
+    long sum = 0;
+
+    for (int i = 0; i < 16; i++)
+        sum += analogRead(pin);
+
+    return sum / 16;
+}
 // ── Sampling ─────────────────────────────────────────────
-#define SCOUNT 60
+#define SCOUNT 80
 int turbBuffer[SCOUNT];
 int tdsBuffer[SCOUNT];
 int turbIndex = 0;
@@ -29,14 +40,14 @@ float temperature = 25.0;
 int screen = 0;
 
 // ── Struct ───────────────────────────────────────────────
-struct Quality {
+struct WaterQuality {
   String message;
   String stars;
 };
-
+WaterQuality getQuality(float tds, float ntu);
 // ── Median filter ─────────────────────────────────────────
 int getMedian(int* buffer, int size) {
-  int sorted[size];
+  int sorted[SCOUNT];
   for (int i = 0; i < size; i++) sorted[i] = buffer[i];
   for (int i = 0; i < size - 1; i++)
     for (int j = 0; j < size - i - 1; j++)
@@ -54,7 +65,7 @@ String getStars(int count) {
 }
 
 // ── Combined quality ──────────────────────────────────────
-Quality getQuality(float tds, float ntu) {
+WaterQuality getQuality(float tds, float ntu) {
   int tdsScore, turbScore;
 
   if      (tds < 50)   tdsScore = 5;
@@ -64,14 +75,14 @@ Quality getQuality(float tds, float ntu) {
   else                 tdsScore = 1;
 
   if      (ntu < 10)   turbScore = 5;
-  else if (ntu < 50)   turbScore = 4;
-  else if (ntu < 150)  turbScore = 3;
-  else if (ntu < 300)  turbScore = 2;
+  else if (ntu < 100)  turbScore = 4;
+  else if (ntu < 300)  turbScore = 3;
+  else if (ntu < 500)  turbScore = 2;
   else                 turbScore = 1;
 
   int overall = (tdsScore + turbScore) / 2;
 
-  Quality q;
+  WaterQuality q;
   q.stars = getStars(overall);
   switch (overall) {
     case 5: q.message = "Excellent!"; break;
@@ -101,6 +112,11 @@ void setup() {
   display.println("Monitor v1.0");
   display.display();
   delay(1500);
+  for (int i = 0; i < SCOUNT; i++) {
+    turbBuffer[i] = readADC(TURBIDITY_PIN);
+    tdsBuffer[i] = readADC(TDS_PIN);
+    delay(20);
+  }
 }
 
 void loop() {
@@ -108,9 +124,9 @@ void loop() {
   static unsigned long sampleTime = millis();
   if (millis() - sampleTime > 40U) {
     sampleTime = millis();
-    turbBuffer[turbIndex++] = analogRead(TURBIDITY_PIN);
+    turbBuffer[turbIndex++] = readADC(TURBIDITY_PIN);
     if (turbIndex == SCOUNT) turbIndex = 0;
-    tdsBuffer[tdsIndex++] = analogRead(TDS_PIN);
+    tdsBuffer[tdsIndex++] = readADC(TDS_PIN);
     if (tdsIndex == SCOUNT) tdsIndex = 0;
   }
 
@@ -130,36 +146,48 @@ void loop() {
     if (tds < 0) tds = 0;
 
     // ── Turbidity ────────────────────────────────────
-    int turbMedian = getMedian(turbBuffer, SCOUNT);
-    float turbVoltage = (turbMedian * (3.3 / 4095.0)) * 2.0;
 
-    float ntu;
-    if (turbVoltage >= 4.2) {
-      ntu = 0;
-    } else if (turbVoltage <= 1.0) {
-      ntu = 3000;
-    } else {
-      ntu = -1120.4 * sq(turbVoltage) + 5742.3 * turbVoltage - 4352.9;
-      if (ntu < 0) ntu = 0;
-    }
-    ntu = ntu - TURB_BASELINE;
-    if (ntu < 0) ntu = 0;
-
-    // ── Turbidity status ─────────────────────────────
     String turbStatus;
-    if (ntu < 10)        turbStatus = "Clear";
-    else if (ntu < 50)   turbStatus = "Slight";
-    else if (ntu < 150)  turbStatus = "Turbid";
-    else                 turbStatus = "Very turbid";
 
-    // ── Combined quality ─────────────────────────────
-    Quality q = getQuality(tds, ntu);
+    int turbMedian = getMedian(turbBuffer, SCOUNT);
+    float turbVoltage = turbMedian * (3.3 / 4095.0);
 
-    // ── Serial debug ─────────────────────────────────
-    Serial.print("TDS: ");     Serial.print((int)tds);
-    Serial.print(" ppm | NTU: "); Serial.print((int)ntu);
-    Serial.print(" | Turb: "); Serial.print(turbStatus);
-    Serial.print(" | Quality: "); Serial.println(q.message);
+    // ADC-based calibration
+    float ntu = (CLEAR_ADC - turbMedian) * SCALE_FACTOR;
+
+    if (ntu < 5)
+        ntu = 0;
+
+    if (ntu > 3000)
+        ntu = 3000;
+
+    if (ntu < 10)
+        turbStatus = "Clear";
+    else if (ntu < 100)
+        turbStatus = "Slight";
+    else if (ntu < 300)
+        turbStatus = "Turbid";
+    else
+        turbStatus = "Very Turbid";
+
+    // Create Quality AFTER tds and ntu are known
+    WaterQuality q = getQuality(tds, ntu);
+
+    // Debug
+    Serial.print("TDS: ");
+    Serial.print((int)tds);
+
+    Serial.print(" ppm | Voltage: ");
+    Serial.print(turbVoltage, 3);
+
+    Serial.print(" V | NTU: ");
+    Serial.print((int)ntu);
+
+    Serial.print(" | ");
+    Serial.print(turbStatus);
+
+    Serial.print(" | ");
+    Serial.println(q.message);
 
     // ── OLED ─────────────────────────────────────────
     display.clearDisplay();
@@ -206,6 +234,17 @@ void loop() {
       display.print("Turb: ");
       display.println(turbStatus);
     }
+
+    Serial.print("ADC: ");
+    Serial.print(turbMedian);
+
+    Serial.print(" Voltage: ");
+    Serial.println(turbVoltage, 3);
+    Serial.print("TDS ADC: ");
+    Serial.println(tdsMedian);
+
+    Serial.print("Turb ADC: ");
+    Serial.println(turbMedian);
 
     display.display();
     screen = (screen + 1) % 2;

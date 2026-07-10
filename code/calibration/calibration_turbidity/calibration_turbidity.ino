@@ -1,29 +1,13 @@
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-
-// ---------------- OLED ----------------
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-#define SDA_PIN 8
-#define SCL_PIN 9
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-// ------------- Turbidity --------------
 #define TURBIDITY_PIN 4
 #define SCOUNT 30
 
 int analogBuffer[SCOUNT];
 int analogBufferIndex = 0;
 
-// ===== Calibration =====
-// Measure this using distilled water
-const float CLEAR_VOLTAGE = 4.;
-
-// Increase/decrease this value to tune sensitivity
+// Adjust sensitivity if required
 const float SCALE_FACTOR = 1000.0;
+
+float clearVoltage = 0.0;
 
 int getMedian(int *buffer, int size)
 {
@@ -51,30 +35,38 @@ int getMedian(int *buffer, int size)
 void setup()
 {
   Serial.begin(115200);
+  delay(1000);
 
-  Wire.begin(SDA_PIN, SCL_PIN);
+  Serial.println();
+  Serial.println("================================");
+  Serial.println(" Turbidity Sensor Calibration");
+  Serial.println(" Keep probe in DISTILLED WATER");
+  Serial.println("================================");
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-  {
-    Serial.println("OLED not found");
-    while (1);
-  }
-
-  // Fill buffer initially
+  // Fill buffer
   for (int i = 0; i < SCOUNT; i++)
   {
     analogBuffer[i] = analogRead(TURBIDITY_PIN);
     delay(20);
   }
 
-  display.clearDisplay();
-  display.setTextColor(WHITE);
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.println("Turbidity Ready");
-  display.display();
+  // Average 100 samples for calibration
+  long sum = 0;
 
-  delay(1500);
+  for (int i = 0; i < 100; i++)
+  {
+    sum += analogRead(TURBIDITY_PIN);
+    delay(20);
+  }
+
+  float avgADC = sum / 100.0;
+  clearVoltage = avgADC * (3.3 / 4095.0);
+
+  Serial.print("Baseline Voltage = ");
+  Serial.print(clearVoltage, 3);
+  Serial.println(" V");
+
+  Serial.println("--------------------------------");
 }
 
 void loop()
@@ -91,28 +83,24 @@ void loop()
       analogBufferIndex = 0;
   }
 
-  static unsigned long displayTime = millis();
+  static unsigned long printTime = millis();
 
-  if (millis() - displayTime > 800)
+  if (millis() - printTime > 1000)
   {
-    displayTime = millis();
+    printTime = millis();
 
     int medianVal = getMedian(analogBuffer, SCOUNT);
 
-    // ADC -> Voltage
-    float voltage = (medianVal * (3.3 / 4095.0)) * 2.0;
+    float voltage = medianVal * (3.3 / 4095.0);
 
-    // ---------- Custom Calibration ----------
-    float ntu = (CLEAR_VOLTAGE - voltage) * SCALE_FACTOR;
+    float ntu = (clearVoltage - voltage) * SCALE_FACTOR;
 
-    if (ntu < 0)
+    if (ntu < 5)
       ntu = 0;
 
-    // Optional upper limit
     if (ntu > 3000)
       ntu = 3000;
 
-    // Water quality
     String quality;
 
     if (ntu < 5)
@@ -124,33 +112,18 @@ void loop()
     else
       quality = "Very Turbid";
 
-    // Serial Monitor
     Serial.print("ADC: ");
     Serial.print(medianVal);
 
-    Serial.print("  Voltage: ");
+    Serial.print(" | Voltage: ");
     Serial.print(voltage, 3);
 
-    Serial.print(" V  NTU: ");
-    Serial.println(ntu, 1);
+    Serial.print(" V");
 
-    // OLED
-    display.clearDisplay();
+    Serial.print(" | NTU: ");
+    Serial.print(ntu, 1);
 
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println("-- Turbidity --");
-
-    display.setTextSize(2);
-    display.setCursor(0, 18);
-    display.print((int)ntu);
-    display.println(" NTU");
-
-    display.setTextSize(1);
-    display.setCursor(0, 48);
-    display.print("Quality: ");
-    display.println(quality);
-
-    display.display();
+    Serial.print(" | ");
+    Serial.println(quality);
   }
 }
