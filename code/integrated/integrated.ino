@@ -4,7 +4,7 @@
 #include <math.h>
 
 // ── Calibration ──────────────────────────────────────────
-#define CLEAR_ADC 2029
+#define CLEAR_ADC 1662
 #define SCALE_FACTOR 0.8
 #define TDS_OFFSET     6.0    // distilled water TDS offset
 #define TDS_CORRECTION 1.0    // adjust after KCl calibration
@@ -238,13 +238,15 @@ void loop() {
     Serial.print("ADC: ");
     Serial.print(turbMedian);
 
-    Serial.print(" Voltage: ");
-    Serial.println(turbVoltage, 3);
-    Serial.print("TDS ADC: ");
-    Serial.println(tdsMedian);
+    Serial.print(" | NTU: ");
+    Serial.print((int)ntu);
 
-    Serial.print("Turb ADC: ");
-    Serial.println(turbMedian);
+    Serial.print(" | ");
+    Serial.print(turbStatus);
+
+    Serial.print(" | TDS: ");
+    Serial.print((int)tds);
+    Serial.println(" ppm");
 
     display.display();
     screen = (screen + 1) % 2;
