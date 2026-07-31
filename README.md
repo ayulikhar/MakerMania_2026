@@ -64,29 +64,38 @@ Buying packaged drinking water due to distrust of tap supply
 ### Environment
 
 What conditions affect them?
+<p>
 Urban apartments and peri-urban areas with inconsistent municipal supply quality
 Rural homes relying on borewell or hand-pump water with unknown contamination
 Post-monsoon periods; sediment and biological load spike in surface water
 Kitchens and storage areas; device must survive humidity, soap splashes
-Power outages common; device cannot depend on mains supply during testing
+Power outages common; device cannot depend on mains supply during testing  
+</p>
+
 
 ### Interactions
 
 Who or what are they interacting with?
+<p>
 Water source; tap, tanker, borewell, stored container
 Household members; mother making decisions for children's drinking water
 Water purifier (RO/UV); users trust it blindly without verifying output
 Municipality or tanker supplier; complaints made verbally, no data to back them
-Neighbours and community; informal word-of-mouth about water quality
+Neighbours and community; informal word-of-mouth about water quality  
+</p>
+
 
 ### Objects
 
 What tools or products are used?
+<p>
 Plastic storage containers and overhead tanks, primary water holding vessels
 RO/UV purifiers: trusted but unmonitored for actual output quality
 TDS pen meters: used by some urban households, numeric output not understood
 Packaged water bottles: costly substitute when tap water is distrusted
-No pH or turbidity tools in a typical household: gap this device fills
+No pH or turbidity tools in a typical household: gap this device fills  
+</p>
+
 ### Users
 
 Who are the primary users?
