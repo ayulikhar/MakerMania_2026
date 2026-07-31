@@ -55,11 +55,14 @@ Where did you conduct your observations?
 ### Activities
 
 What are users doing?
+<p>
 Filling drinking water from tap, borewell, or overhead tank before consuming
 Storing water in containers; pots, buckets, plastic cans for daily household use
 Manually checking water appearance against light or smell before use
 Operating water purifiers (RO/UV) with little understanding of output quality
-Buying packaged drinking water due to distrust of tap supply
+Buying packaged drinking water due to distrust of tap supply  
+</p>
+
 
 ### Environment
 
@@ -99,11 +102,14 @@ No pH or turbidity tools in a typical household: gap this device fills
 ### Users
 
 Who are the primary users?
+<p>
 Homemakers (25–55 yrs); primary decision-makers for household drinking water, non-technical
 Renters in urban areas; no control over plumbing, high need to verify supplied water
 Rural households; borewell-dependent, no access to lab testing, low literacy
 Parents with young children : heightened concern, willing to act on safety signals
-Small food businesses: tea stalls, tiffin centres needing quick daily water checks
+Small food businesses: tea stalls, tiffin centres needing quick daily water checks  
+</p>
+
 
 ---
 
